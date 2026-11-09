@@ -3,39 +3,35 @@ import requests
 import google.generativeai as genai
 from datetime import datetime, timedelta
 
-# Настройка страницы
-st.set_page_config(page_title="🏢 Штаб WB", page_icon="🏢", layout="wide")
+st.set_page_config(page_title="Штаб WB", page_icon="🏢", layout="wide")
 
-# Получаем ключи из Streamlit Secrets
 GEMINI_KEY = st.secrets.get("GEMINI_API_KEY", "")
 WB_TOKEN = st.secrets.get("WB_API_TOKEN", "")
 
-# Настройка Gemini (актуальная модель)
 if GEMINI_KEY:
     genai.configure(api_key=GEMINI_KEY)
     model = genai.GenerativeModel('gemini-3.8-flash')
 else:
     model = None
 
-# Заголовок
 st.title("🏢 Виртуальный офис WB")
 st.markdown("---")
 
-# Проверка ключей
 if not GEMINI_KEY or not WB_TOKEN:
     st.error("⚠️ Ключи API не настроены. Добавьте GEMINI_API_KEY и WB_API_TOKEN в Secrets на Streamlit Cloud.")
     st.stop()
 
-# Функция запроса к ИИ
 def ask_llm(prompt, system_prompt=""):
     try:
-        full = (f"[ИНСТРУКЦИЯ]: {system_prompt}\n\n" if system_prompt else "") + f"[ЗАПРОС]: {prompt}"
+        full = ""
+        if system_prompt:
+            full = "[ИНСТРУКЦИЯ]: " + system_prompt + "\n\n"
+        full = full + "[ЗАПРОС]: " + prompt
         response = model.generate_content(full)
         return response.text
     except Exception as e:
-        return f"❌ Ошибка ИИ: {e}"
+        return "❌ Ошибка ИИ: " + str(e)
 
-# Функция получения данных с WB
 def get_wb_sales(days_back=7):
     date_from = (datetime.now() - timedelta(days_back)).strftime("%Y-%m-%d")
     url = "https://statistics-api.wildberries.ru/api/v1/supplier/sales"
@@ -46,11 +42,10 @@ def get_wb_sales(days_back=7):
     except Exception as e:
         return {"error": str(e)}
 
-# CFO - анализ финансов
 def analyze_cfo():
     sales = get_wb_sales(7)
     if isinstance(sales, dict) and "error" in sales:
-        return f"❌ Ошибка WB API: {sales['error']}\n\nПроверьте токен WB_API_TOKEN."
+        return "❌ Ошибка WB API: " + sales['error'] + "\n\nПроверьте токен WB_API_TOKEN."
     if not sales:
         return "📊 Нет данных о продажах за последние 7 дней."
     
@@ -71,14 +66,13 @@ def analyze_cfo():
             products[nm]["returns"] += 1
     
     top5 = sorted(products.items(), key=lambda x: x[1]["revenue"], reverse=True)[:5]
-    top_text = "\n".join([f"• {nm} ({d['brand'][:30]}): {d['revenue']:,.0f}₽, {d['qty']}шт, возвратов {d['returns']}шт" for nm, d in top5])
+    top_lines = []
+    for nm, d in top5:
+        line = "• " + str(nm) + " (" + d['brand'][:30] + "): " + f"{d['revenue']:,.0f}" + "₽, " + str(d['qty']) + "шт, возвратов " + str(d['returns']) + "шт"
+        top_lines.append(line)
+    top_text = "\n".join(top_lines)
     
-    prompt = f"""Данные за 7 дней:
-- Выручка: {rev:,.0f}₽
-- Продано: {qty}шт
-- Возвратов: {ret}шт ({ret_rate:.1f}%)
-
-Топ-5 товаров:
-{top_text}
-
-ЗАДАНИЕ:
+    prompt = "Данные за 7 дней:\n"
+    prompt = prompt + "- Выручка: " + f"{rev:,.0f}" + "₽\n"
+    prompt = prompt + "- Продано: " + str(qty) + "шт\n"
+    prompt = prompt + "- Возвратов:
