@@ -1,65 +1,67 @@
 import streamlit as st
 import requests
-import google.generativeai as genai
+from google import genai
 from datetime import datetime, timedelta
 
-st.set_page_config(page_title='Shtab WB', page_icon='🏢', layout='wide')
+st.set_page_config(page_title='\u0428\u0442\u0430\u0431 WB', page_icon='\U0001f3e2', layout='wide')
 
 GEMINI_KEY = st.secrets.get('GEMINI_API_KEY', '')
 WB_TOKEN = st.secrets.get('WB_API_TOKEN', '')
 
 if GEMINI_KEY:
-    genai.configure(api_key=GEMINI_KEY)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    client = genai.Client(api_key=GEMINI_KEY)
 else:
-    model = None
+    client = None
 
-st.title('\U0001f3e2 Virtualny ofis WB')
+st.title('\U0001f3e2 \u0412\u0438\u0440\u0442\u0443\u0430\u043b\u044c\u043d\u044b\u0439 \u043e\u0444\u0438\u0441 WB')
 st.markdown('---')
 
 if not GEMINI_KEY or not WB_TOKEN:
-    st.error('\u26a0\ufe0f Klyuchi API ne nastroeny')
+    st.error('\u26a0\ufe0f \u041a\u043b\u044e\u0447\u0438 API \u043d\u0435 \u043d\u0430\u0441\u0442\u0440\u043e\u0435\u043d\u044b. \u0414\u043e\u0431\u0430\u0432\u044c\u0442\u0435 GEMINI_API_KEY \u0438 WB_API_TOKEN \u0432 Secrets \u043d\u0430 Streamlit Cloud.')
     st.stop()
 
 def ask_llm(prompt, system_prompt=''):
     try:
-        st.info('Otpravka zaprosa k Gemini...')
-        full = ''
+        st.info('\u041e\u0442\u043f\u0440\u0430\u0432\u043a\u0430 \u0437\u0430\u043f\u0440\u043e\u0441\u0430 \u043a Gemini...')
+        contents = []
         if system_prompt:
-            full = '[INSTRUKCIYA]: ' + system_prompt + '\n\n'
-        full = full + '[ZAPROS]: ' + prompt
-        response = model.generate_content(full)
-        st.success('Otvet poluchen!')
+            contents.append({'role': 'user', 'parts': [{'text': '[\u0418\u041d\u0421\u0422\u0420\u0423\u041a\u0426\u0418\u042f]: ' + system_prompt}]})
+        contents.append({'role': 'user', 'parts': [{'text': '[\u0417\u0410\u041f\u0420\u041e\u0421]: ' + prompt}]})
+        response = client.models.generate_content(
+            model='gemini-3.8-flash',
+            contents=contents
+        )
+        st.success('\u041e\u0442\u0432\u0435\u0442 \u043f\u043e\u043b\u0443\u0447\u0435\u043d!')
         return response.text
     except Exception as e:
-        return '\u274c Oshibka Gemini: ' + str(e) + '\n\nProverte kluch GEMINI_API_KEY ili smenite model.'
+        return '\u274c \u041e\u0448\u0438\u0431\u043a\u0430 Gemini: ' + str(e)
 
 def get_wb_sales(days_back=7):
     date_from = (datetime.now() - timedelta(days_back)).strftime('%Y-%m-%d')
     url = 'https://statistics-api.wildberries.ru/api/v1/supplier/sales'
     try:
-        st.info('Podklyuchenie k WB API...')
-        r = requests.get(url, headers={'Authorization': WB_TOKEN}, params={'dateFrom': date_from}, timeout=15)
+        st.info('\u041f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0435 \u043a WB API...')
+        r = requests.get(url, headers={'Authorization': WB_TOKEN}, params={'dateFrom': date_from}, timeout=30)
         r.raise_for_status()
-        st.success('Dannye WB polucheny!')
+        st.success('\u0414\u0430\u043d\u043d\u044b\u0435 WB \u043f\u043e\u043b\u0443\u0447\u0435\u043d\u044b!')
         return r.json()
     except requests.exceptions.Timeout:
-        return {'error': 'WB API ne otvechaet (timeout).'}
+        return {'error': 'WB API \u043d\u0435 \u043e\u0442\u0432\u0435\u0447\u0430\u0435\u0442 (\u0442\u0430\u0439\u043c\u0430\u0443\u0442).'}
     except requests.exceptions.ConnectionError:
-        return {'error': 'Net soedineniya s WB API.'}
+        return {'error': '\u041d\u0435\u0442 \u0441\u043e\u0435\u0434\u0438\u043d\u0435\u043d\u0438\u044f \u0441 WB API.'}
     except Exception as e:
         return {'error': str(e)}
 
 def analyze_cfo():
-    st.info('Zagruzka dannyh iz WB...')
+    st.info('\u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430 \u0434\u0430\u043d\u043d\u044b\u0445 \u0438\u0437 WB...')
     sales = get_wb_sales(7)
     
     if isinstance(sales, dict) and 'error' in sales:
-        return '\u274c Oshibka WB API: ' + sales['error']
+        return '\u274c \u041e\u0448\u0438\u0431\u043a\u0430 WB API: ' + sales['error']
     if not sales:
-        return '\U0001f4ca Net dannyh o prodazhah za 7 dney.'
+        return '\U0001f4ca \u041d\u0435\u0442 \u0434\u0430\u043d\u043d\u044b\u0445 \u043e \u043f\u0440\u043e\u0434\u0430\u0436\u0430\u0445 \u0437\u0430 7 \u0434\u043d\u0435\u0439.'
     
-    st.info('Analiz dannyh...')
+    st.info('\u0410\u043d\u0430\u043b\u0438\u0437 \u0434\u0430\u043d\u043d\u044b\u0445...')
     
     rev = 0
     qty = 0
@@ -89,49 +91,14 @@ def analyze_cfo():
     top5 = sorted(products.items(), key=lambda x: x[1]['revenue'], reverse=True)[:5]
     top_text = ''
     for nm, d in top5:
-        top_text = top_text + '\u2022 ' + str(nm) + ' (' + d['brand'][:30] + '): ' + str(int(d['revenue'])) + ' rub, ' + str(d['qty']) + ' sht, vozvratov ' + str(d['returns']) + ' sht\n'
+        top_text = top_text + '\u2022 ' + str(nm) + ' (' + d['brand'][:30] + '): ' + str(int(d['revenue'])) + ' \u0440\u0443\u0431, ' + str(d['qty']) + ' \u0448\u0442, \u0432\u043e\u0437\u0432\u0440\u0430\u0442\u043e\u0432 ' + str(d['returns']) + ' \u0448\u0442\n'
     
-    prompt = 'Dannye za 7 dney:\n'
-    prompt = prompt + '- Vyruchka: ' + str(int(rev)) + ' rub\n'
-    prompt = prompt + '- Prodano: ' + str(qty) + ' sht\n'
-    prompt = prompt + '- Vozvratov: ' + str(ret) + ' sht (' + str(round(ret_rate, 1)) + '%)\n\n'
-    prompt = prompt + 'Top-5 tovarov:\n' + top_text + '\n'
-    prompt = prompt + 'ZADANIE:\n'
-    prompt = prompt + '1. Naydi tovary s vozvratami bolshe 20%\n'
-    prompt = prompt + '2. Day 5 konkretnyh rekomendaciy po uvelicheniyu pribyli\n'
-    prompt = prompt + '3. Rasstav prioriteti: SROCHNO / VAZHNO / PLANOVO'
-    
-    system = 'Ty CFO magazina na Wildberries. Analiziruy prodazhi, ischi tochki rosta. Otvechay chetko s ciframi na russkom yazyke.'
-    return ask_llm(prompt, system)
-
-def analyze_ceo():
-    cfo_report = analyze_cfo()
-    prompt = 'Otchet CFO:\n' + cfo_report + '\n\nSformiruy plan deystviy na den s prioritetami.'
-    system = 'Ty CEO virtualnogo ofisa WB. Sinteziruy informaciyu, rasstavlyay prioriteti, davay chetkiy plan na russkom yazyke.'
-    return ask_llm(prompt, system)
-
-st.sidebar.title('\U0001f465 Vyberite specialista')
-agent = st.sidebar.radio(
-    'K komu obratitsya:',
-    ['\U0001f3af CEO (Obschiy shtab)', '\U0001f4b0 CFO (Finansy)', '\U0001f524 SEO (skoro)', '\U0001f4c8 Reklama (skoro)', '\U0001f4e6 Logistika (skoro)']
-)
-
-if 'CEO' in agent:
-    st.header('\U0001f3af CEO \u2014 Obschiy shtab')
-    st.write('Svodka ot vseh specialistov i plan deystviy na den.')
-    if st.button('\U0001f4cb Poluchit plan na den', type='primary'):
-        with st.spinner('CEO sobiraet otchety...'):
-            result = analyze_ceo()
-        st.markdown(result)
-
-elif 'CFO' in agent:
-    st.header('\U0001f4b0 CFO \u2014 Finansovyy direktor')
-    st.write('Analiz P&L, poisk ubytochnyh tovarov i tochek rosta.')
-    if st.button('\U0001f4b0 Provesti analiz finansov', type='primary'):
-        with st.spinner('CFO zagruzhaet dannye iz WB...'):
-            result = analyze_cfo()
-        st.markdown(result)
-
-else:
-    st.header(agent)
-    st.info('\u23f3 Etot agent nahoditsya v razrabotke.')
+    prompt = '\u0414\u0430\u043d\u043d\u044b\u0435 \u0437\u0430 7 \u0434\u043d\u0435\u0439:\n'
+    prompt = prompt + '- \u0412\u044b\u0440\u0443\u0447\u043a\u0430: ' + str(int(rev)) + ' \u0440\u0443\u0431\n'
+    prompt = prompt + '- \u041f\u0440\u043e\u0434\u0430\u043d\u043e: ' + str(qty) + ' \u0448\u0442\n'
+    prompt = prompt + '- \u0412\u043e\u0437\u0432\u0440\u0430\u0442\u043e\u0432: ' + str(ret) + ' \u0448\u0442 (' + str(round(ret_rate, 1)) + '%)\n\n'
+    prompt = prompt + '\u0422\u043e\u043f-5 \u0442\u043e\u0432\u0430\u0440\u043e\u0432:\n' + top_text + '\n'
+    prompt = prompt + '\u0417\u0410\u0414\u0410\u041d\u0418\u0415:\n'
+    prompt = prompt + '1. \u041d\u0430\u0439\u0434\u0438 \u0442\u043e\u0432\u0430\u0440\u044b \u0441 \u0432\u043e\u0437\u0432\u0440\u0430\u0442\u0430\u043c\u0438 \u0431\u043e\u043b\u044c\u0448\u0435 20%\n'
+    prompt = prompt + '2. \u0414\u0430\u0439 5 \u043a\u043e\u043d\u043a\u0440\u0435\u0442\u043d\u044b\u0445 \u0440\u0435\u043a\u043e\u043c\u0435\u043d\u0434\u0430\u0446\u0438\u0439 \u043f\u043e \u0443\u0432\u0435\u043b\u0438\u0447\u0435\u043d\u0438\u044e \u043f\u0440\u0438\u0431\u044b\u043b\u0438\n'
+    prompt = prompt + '
