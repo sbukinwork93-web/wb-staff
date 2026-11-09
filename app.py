@@ -1,18 +1,31 @@
 import streamlit as st
 import requests
 import google.generativeai as genai
+import os
 from datetime import datetime, timedelta
 
 # Настройка страницы
 st.set_page_config(page_title="🏢 Штаб WB", page_icon="🏢", layout="wide")
 
+# Получаем ключи из переменных окружения (работает на Render)
+GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "")
+WB_TOKEN = os.environ.get("WB_API_TOKEN", "")
+
 # Настройка Gemini
-genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-model = genai.GenerativeModel('gemini-2.0-flash')
+if GEMINI_KEY:
+    genai.configure(api_key=GEMINI_KEY)
+    model = genai.GenerativeModel('gemini-2.0-flash')
+else:
+    model = None
 
 # Заголовок
 st.title("🏢 Виртуальный офис WB")
 st.markdown("---")
+
+# Проверка ключей
+if not GEMINI_KEY or not WB_TOKEN:
+    st.error("⚠️ Ключи API не настроены. Добавьте GEMINI_API_KEY и WB_API_TOKEN в переменные окружения Render.")
+    st.stop()
 
 # Функция запроса к ИИ
 def ask_llm(prompt, system_prompt=""):
@@ -28,7 +41,7 @@ def get_wb_sales(days_back=7):
     date_from = (datetime.now() - timedelta(days=days_back)).strftime("%Y-%m-%d")
     url = "https://statistics-api.wildberries.ru/api/v1/supplier/sales"
     try:
-        r = requests.get(url, headers={"Authorization": st.secrets["WB_API_TOKEN"]}, params={"dateFrom": date_from}, timeout=30)
+        r = requests.get(url, headers={"Authorization": WB_TOKEN}, params={"dateFrom": date_from}, timeout=30)
         r.raise_for_status()
         return r.json()
     except Exception as e:
@@ -38,7 +51,7 @@ def get_wb_sales(days_back=7):
 def analyze_cfo():
     sales = get_wb_sales(7)
     if isinstance(sales, dict) and "error" in sales:
-        return f"❌ Ошибка WB API: {sales['error']}\n\nПроверьте токен в настройках Streamlit Secrets."
+        return f"❌ Ошибка WB API: {sales['error']}\n\nПроверьте токен WB_API_TOKEN."
     if not sales:
         return "📊 Нет данных о продажах за последние 7 дней."
     
@@ -47,7 +60,6 @@ def analyze_cfo():
     ret = sum(1 for i in sales if i.get("saleStatus") == 2)
     ret_rate = (ret / max(qty, 1)) * 100
     
-    # Топ товаров
     products = {}
     for item in sales:
         nm = item.get("nmId")
