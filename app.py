@@ -3,10 +3,10 @@ import requests
 import google.generativeai as genai
 from datetime import datetime, timedelta
 
-st.set_page_config(page_title="Штаб WB", page_icon="🏢", layout="wide")
+st.set_page_config(page_title='Shtab WB', page_icon='🏢', layout='wide')
 
-GEMINI_KEY = st.secrets.get("GEMINI_API_KEY", "")
-WB_TOKEN = st.secrets.get("WB_API_TOKEN", "")
+GEMINI_KEY = st.secrets.get('GEMINI_API_KEY', '')
+WB_TOKEN = st.secrets.get('WB_API_TOKEN', '')
 
 if GEMINI_KEY:
     genai.configure(api_key=GEMINI_KEY)
@@ -14,65 +14,66 @@ if GEMINI_KEY:
 else:
     model = None
 
-st.title("🏢 Виртуальный офис WB")
-st.markdown("---")
+st.title('🏢 Virtualny ofis WB')
+st.markdown('---')
 
 if not GEMINI_KEY or not WB_TOKEN:
-    st.error("⚠️ Ключи API не настроены. Добавьте GEMINI_API_KEY и WB_API_TOKEN в Secrets на Streamlit Cloud.")
+    st.error('Klyuchi API ne nastroeny')
     st.stop()
 
-def ask_llm(prompt, system_prompt=""):
+def ask_llm(prompt, system_prompt=''):
     try:
-        full = ""
+        full = ''
         if system_prompt:
-            full = "[ИНСТРУКЦИЯ]: " + system_prompt + "\n\n"
-        full = full + "[ЗАПРОС]: " + prompt
+            full = '[INSTRUKCIYA]: ' + system_prompt + '\n\n'
+        full = full + '[ZAPROS]: ' + prompt
         response = model.generate_content(full)
         return response.text
     except Exception as e:
-        return "❌ Ошибка ИИ: " + str(e)
+        return 'Oshibka II: ' + str(e)
 
 def get_wb_sales(days_back=7):
-    date_from = (datetime.now() - timedelta(days_back)).strftime("%Y-%m-%d")
-    url = "https://statistics-api.wildberries.ru/api/v1/supplier/sales"
+    date_from = (datetime.now() - timedelta(days_back)).strftime('%Y-%m-%d')
+    url = 'https://statistics-api.wildberries.ru/api/v1/supplier/sales'
     try:
-        r = requests.get(url, headers={"Authorization": WB_TOKEN}, params={"dateFrom": date_from}, timeout=30)
+        r = requests.get(url, headers={'Authorization': WB_TOKEN}, params={'dateFrom': date_from}, timeout=30)
         r.raise_for_status()
         return r.json()
     except Exception as e:
-        return {"error": str(e)}
+        return {'error': str(e)}
 
 def analyze_cfo():
     sales = get_wb_sales(7)
-    if isinstance(sales, dict) and "error" in sales:
-        return "❌ Ошибка WB API: " + sales['error'] + "\n\nПроверьте токен WB_API_TOKEN."
+    if isinstance(sales, dict) and 'error' in sales:
+        return 'Oshibka WB API: ' + sales['error']
     if not sales:
-        return "📊 Нет данных о продажах за последние 7 дней."
+        return 'Net dannyh o prodazhah za 7 dney.'
     
-    rev = sum(i.get("totalPrice", 0) / 100 for i in sales if i.get("saleStatus") == 1)
-    qty = sum(1 for i in sales if i.get("saleStatus") == 1)
-    ret = sum(1 for i in sales if i.get("saleStatus") == 2)
+    rev = 0
+    qty = 0
+    ret = 0
+    products = {}
+    
+    for item in sales:
+        nm = item.get('nmId')
+        status = item.get('saleStatus')
+        price = item.get('totalPrice', 0) / 100
+        brand = item.get('brandName', '')
+        
+        if nm not in products:
+            products[nm] = {'brand': brand, 'revenue': 0, 'qty': 0, 'returns': 0}
+        
+        if status == 1:
+            products[nm]['revenue'] += price
+            products[nm]['qty'] += 1
+            rev += price
+            qty += 1
+        elif status == 2:
+            products[nm]['returns'] += 1
+            ret += 1
+    
     ret_rate = (ret / max(qty, 1)) * 100
     
-    products = {}
-    for item in sales:
-        nm = item.get("nmId")
-        if nm not in products:
-            products[nm] = {"brand": item.get("brandName", ""), "revenue": 0, "qty": 0, "returns": 0}
-        if item.get("saleStatus") == 1:
-            products[nm]["revenue"] += item.get("totalPrice", 0) / 100
-            products[nm]["qty"] += 1
-        elif item.get("saleStatus") == 2:
-            products[nm]["returns"] += 1
-    
-    top5 = sorted(products.items(), key=lambda x: x[1]["revenue"], reverse=True)[:5]
-    top_lines = []
-    for nm, d in top5:
-        line = "• " + str(nm) + " (" + d['brand'][:30] + "): " + f"{d['revenue']:,.0f}" + "₽, " + str(d['qty']) + "шт, возвратов " + str(d['returns']) + "шт"
-        top_lines.append(line)
-    top_text = "\n".join(top_lines)
-    
-    prompt = "Данные за 7 дней:\n"
-    prompt = prompt + "- Выручка: " + f"{rev:,.0f}" + "₽\n"
-    prompt = prompt + "- Продано: " + str(qty) + "шт\n"
-    prompt = prompt + "- Возвратов:
+    top5 = sorted(products.items(), key=lambda x: x[1]['revenue'], reverse=True)[:5]
+    top_text = ''
+    for nm, d
