@@ -10,7 +10,7 @@ WB_TOKEN = st.secrets.get('WB_API_TOKEN', '')
 
 if GEMINI_KEY:
     genai.configure(api_key=GEMINI_KEY)
-    model = genai.GenerativeModel('gemini-3.8-flash')
+    model = genai.GenerativeModel('gemini-2.0-flash')
 else:
     model = None
 
@@ -23,14 +23,16 @@ if not GEMINI_KEY or not WB_TOKEN:
 
 def ask_llm(prompt, system_prompt=''):
     try:
+        st.info('Otpravka zaprosa k Gemini...')
         full = ''
         if system_prompt:
             full = '[INSTRUKCIYA]: ' + system_prompt + '\n\n'
         full = full + '[ZAPROS]: ' + prompt
         response = model.generate_content(full)
+        st.success('Otvet poluchen!')
         return response.text
     except Exception as e:
-        return 'Oshibka II: ' + str(e)
+        return '\u274c Oshibka Gemini: ' + str(e) + '\n\nProverte kluch GEMINI_API_KEY ili smenite model.'
 
 def get_wb_sales(days_back=7):
     date_from = (datetime.now() - timedelta(days_back)).strftime('%Y-%m-%d')
@@ -42,9 +44,9 @@ def get_wb_sales(days_back=7):
         st.success('Dannye WB polucheny!')
         return r.json()
     except requests.exceptions.Timeout:
-        return {'error': 'WB API ne otvechaet (timeout). Vozmozhno, API blokiruet zaprosy iz-za granicy.'}
+        return {'error': 'WB API ne otvechaet (timeout).'}
     except requests.exceptions.ConnectionError:
-        return {'error': 'Net soedineniya s WB API. Vozmozhno, API nedostupen iz etogo regiona.'}
+        return {'error': 'Net soedineniya s WB API.'}
     except Exception as e:
         return {'error': str(e)}
 
@@ -53,7 +55,7 @@ def analyze_cfo():
     sales = get_wb_sales(7)
     
     if isinstance(sales, dict) and 'error' in sales:
-        return '\u274c Oshibka WB API: ' + sales['error'] + '\n\nProverte token WB_API_TOKEN i dostupnost API.'
+        return '\u274c Oshibka WB API: ' + sales['error']
     if not sales:
         return '\U0001f4ca Net dannyh o prodazhah za 7 dney.'
     
@@ -88,8 +90,6 @@ def analyze_cfo():
     top_text = ''
     for nm, d in top5:
         top_text = top_text + '\u2022 ' + str(nm) + ' (' + d['brand'][:30] + '): ' + str(int(d['revenue'])) + ' rub, ' + str(d['qty']) + ' sht, vozvratov ' + str(d['returns']) + ' sht\n'
-    
-    st.info('Otpravka zaprosa k Gemini...')
     
     prompt = 'Dannye za 7 dney:\n'
     prompt = prompt + '- Vyruchka: ' + str(int(rev)) + ' rub\n'
