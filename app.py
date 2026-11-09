@@ -76,4 +76,50 @@ def analyze_cfo():
     
     top5 = sorted(products.items(), key=lambda x: x[1]['revenue'], reverse=True)[:5]
     top_text = ''
-    for nm, d
+    for nm, d in top5:
+        top_text = top_text + '• ' + str(nm) + ' (' + d['brand'][:30] + '): ' + str(int(d['revenue'])) + 'rub, ' + str(d['qty']) + 'sht, vozvratov ' + str(d['returns']) + 'sht\n'
+    
+    prompt = 'Dannye za 7 dney:\n'
+    prompt = prompt + '- Vyruchka: ' + str(int(rev)) + ' rub\n'
+    prompt = prompt + '- Prodano: ' + str(qty) + ' sht\n'
+    prompt = prompt + '- Vozvratov: ' + str(ret) + ' sht (' + str(round(ret_rate, 1)) + '%)\n\n'
+    prompt = prompt + 'Top-5 tovarov:\n' + top_text + '\n'
+    prompt = prompt + 'ZADANIE:\n'
+    prompt = prompt + '1. Naydi tovary s vozvratami bolshe 20%\n'
+    prompt = prompt + '2. Day 5 konkretnyh rekomendaciy po uvelicheniyu pribyli\n'
+    prompt = prompt + '3. Rasstav prioriteti: SROCHNO / VAZHNO / PLANOVO'
+    
+    system = 'Ty CFO magazina na Wildberries. Analiziruy prodazhi, ischi tochki rosta. Otvechay chetko s ciframi.'
+    return ask_llm(prompt, system)
+
+def analyze_ceo():
+    cfo_report = analyze_cfo()
+    prompt = 'Otchet CFO:\n' + cfo_report + '\n\nSformiruy plan deystviy na den s prioritetami.'
+    system = 'Ty CEO virtualnogo ofisa WB. Sinteziruy informaciyu, rasstavlyay prioriteti, davay chetkiy plan.'
+    return ask_llm(prompt, system)
+
+st.sidebar.title('👥 Vyberite specialista')
+agent = st.sidebar.radio(
+    'K komu obratitsya:',
+    ['🎯 CEO (Obschiy shtab)', '💰 CFO (Finansy)', '🔤 SEO (skoro)', '📈 Reklama (skoro)', '📦 Logistika (skoro)']
+)
+
+if 'CEO' in agent:
+    st.header('🎯 CEO — Obschiy shtab')
+    st.write('Svodka ot vseh specialistov i plan deystviy na den.')
+    if st.button('📋 Poluchit plan na den', type='primary'):
+        with st.spinner('CEO sobiraet otchety...'):
+            result = analyze_ceo()
+        st.markdown(result)
+
+elif 'CFO' in agent:
+    st.header('💰 CFO — Finansovyy direktor')
+    st.write('Analiz P&L, poisk ubytochnyh tovarov i tochek rosta.')
+    if st.button('💰 Provesti analiz finansov', type='primary'):
+        with st.spinner('CFO zagruzhaet dannye iz WB...'):
+            result = analyze_cfo()
+        st.markdown(result)
+
+else:
+    st.header(agent)
+    st.info('⏳ Etot agent nahoditsya v razrabotke.')
