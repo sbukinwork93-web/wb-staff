@@ -14,7 +14,7 @@ WB_TOKEN = os.environ.get("WB_API_TOKEN", "")
 # Настройка Gemini
 if GEMINI_KEY:
     genai.configure(api_key=GEMINI_KEY)
-    model = genai.GenerativeModel('gemini-2.0-flash')
+    model = genai.GenerativeModel('gemini-2.5-flash')
 else:
     model = None
 
