@@ -1,20 +1,19 @@
 import streamlit as st
 import requests
 import google.generativeai as genai
-import os
 from datetime import datetime, timedelta
 
 # Настройка страницы
 st.set_page_config(page_title="🏢 Штаб WB", page_icon="🏢", layout="wide")
 
-# Получаем ключи из переменных окружения (работает на Render)
-GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "")
-WB_TOKEN = os.environ.get("WB_API_TOKEN", "")
+# Получаем ключи из Streamlit Secrets
+GEMINI_KEY = st.secrets.get("GEMINI_API_KEY", "")
+WB_TOKEN = st.secrets.get("WB_API_TOKEN", "")
 
 # Настройка Gemini
 if GEMINI_KEY:
     genai.configure(api_key=GEMINI_KEY)
-    model = genai.GenerativeModel('gemini-3.8-flash')
+    model = genai.GenerativeModel('gemini-2.5-flash')
 else:
     model = None
 
@@ -24,7 +23,7 @@ st.markdown("---")
 
 # Проверка ключей
 if not GEMINI_KEY or not WB_TOKEN:
-    st.error("⚠️ Ключи API не настроены. Добавьте GEMINI_API_KEY и WB_API_TOKEN в переменные окружения Render.")
+    st.error("⚠️ Ключи API не настроены. Добавьте GEMINI_API_KEY и WB_API_TOKEN в Secrets на Streamlit Cloud.")
     st.stop()
 
 # Функция запроса к ИИ
@@ -38,7 +37,7 @@ def ask_llm(prompt, system_prompt=""):
 
 # Функция получения данных с WB
 def get_wb_sales(days_back=7):
-    date_from = (datetime.now() - timedelta(days=days_back)).strftime("%Y-%m-%d")
+    date_from = (datetime.now() - timedelta(days_back)).strftime("%Y-%m-%d")
     url = "https://statistics-api.wildberries.ru/api/v1/supplier/sales"
     try:
         r = requests.get(url, headers={"Authorization": WB_TOKEN}, params={"dateFrom": date_from}, timeout=30)
