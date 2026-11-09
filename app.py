@@ -10,10 +10,10 @@ st.set_page_config(page_title="🏢 Штаб WB", page_icon="🏢", layout="wide
 GEMINI_KEY = st.secrets.get("GEMINI_API_KEY", "")
 WB_TOKEN = st.secrets.get("WB_API_TOKEN", "")
 
-# Настройка Gemini
+# Настройка Gemini (актуальная модель)
 if GEMINI_KEY:
     genai.configure(api_key=GEMINI_KEY)
-    model = genai.GenerativeModel('gemini-2.5-flash')
+    model = genai.GenerativeModel('gemini-3.8-flash')
 else:
     model = None
 
@@ -82,42 +82,3 @@ def analyze_cfo():
 {top_text}
 
 ЗАДАНИЕ:
-1. Найди товары с возвратами >20%
-2. Дай 5 конкретных рекомендаций по увеличению прибыли
-3. Расставь приоритеты: 🔴 СРОЧНО / 🟡 ВАЖНО / 🟢 ПЛАНОВО"""
-    
-    return ask_llm(prompt, "Ты CFO магазина на Wildberries. Анализируй продажи, ищи точки роста. Отвечай чётко с цифрами.")
-
-# CEO - общий план
-def analyze_ceo():
-    cfo_report = analyze_cfo()
-    prompt = f"Отчёт CFO:\n{cfo_report}\n\nСформируй план действий на день с приоритетами и ожидаемым эффектом."
-    return ask_llm(prompt, "Ты CEO виртуального офиса WB. Синтезируй информацию, расставляй приоритеты 🔴🟡🟢, давай чёткий план.")
-
-# Боковая панель
-st.sidebar.title("👥 Выберите специалиста")
-agent = st.sidebar.radio(
-    "К кому обратиться:",
-    ["🎯 CEO (Общий штаб)", "💰 CFO (Финансы)", "🔤 SEO (скоро)", "📈 Реклама (скоро)", "📦 Логистика (скоро)"]
-)
-
-# Главная область
-if "CEO" in agent:
-    st.header("🎯 CEO — Общий штаб")
-    st.write("Сводка от всех специалистов и план действий на день.")
-    if st.button("📋 Получить план на день", type="primary"):
-        with st.spinner("CEO собирает отчёты и думает..."):
-            result = analyze_ceo()
-        st.markdown(result)
-
-elif "CFO" in agent:
-    st.header("💰 CFO — Финансовый директор")
-    st.write("Анализ P&L, поиск убыточных товаров и точек роста.")
-    if st.button("💰 Провести анализ финансов", type="primary"):
-        with st.spinner("CFO загружает данные из WB и анализирует..."):
-            result = analyze_cfo()
-        st.markdown(result)
-
-else:
-    st.header(agent)
-    st.info("⏳ Этот агент находится в разработке и будет добавлен на следующем этапе.")
