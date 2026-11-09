@@ -10,7 +10,7 @@ WB_TOKEN = st.secrets.get('WB_API_TOKEN', '')
 
 if GEMINI_KEY:
     genai.configure(api_key=GEMINI_KEY)
-    model = genai.GenerativeModel('gemini-2.0-flash')
+    model = genai.GenerativeModel('gemini-1.5-flash')
 else:
     model = None
 
