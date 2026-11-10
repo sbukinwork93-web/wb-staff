@@ -22,28 +22,34 @@ if not GEMINI_KEY or not WB_TOKEN:
     st.stop()
 
 def ask_llm(prompt, system_prompt=''):
-    max_retries = 3
-    for attempt in range(max_retries):
+    models_to_try = ['gemini-1.5-flash', 'gemini-pro', 'gemini-3.8-flash']
+    
+    for model_name in models_to_try:
         try:
-            st.info('Отправка запроса к Gemini...')
+            st.info('Отправка запроса к Gemini (модель: ' + model_name + ')...')
             contents = []
             if system_prompt:
                 contents.append({'role': 'user', 'parts': [{'text': '[ИНСТРУКЦИЯ]: ' + system_prompt}]})
             contents.append({'role': 'user', 'parts': [{'text': '[ЗАПРОС]: ' + prompt}]})
             response = client.models.generate_content(
-                model='gemini-2.5-flash',
+                model=model_name,
                 contents=contents
             )
-            st.success('Ответ получен!')
+            st.success('Ответ получен! (модель: ' + model_name + ')')
             return response.text
         except Exception as e:
             error_str = str(e)
-            if '503' in error_str and attempt < max_retries - 1:
-                st.warning('Gemini перегружен, повторная попытка через 5 секунд...')
+            if '404' in error_str or 'NOT_FOUND' in error_str:
+                st.warning('Модель ' + model_name + ' недоступна, пробуем следующую...')
+                continue
+            elif '503' in error_str:
+                st.warning('Gemini перегружен, ждём 5 секунд...')
                 time.sleep(5)
+                continue
             else:
                 return '❌ Ошибка Gemini: ' + error_str
-    return '❌ Gemini недоступен после 3 попыток.'
+    
+    return '❌ Все модели Gemini недоступны. Проверьте ключ GEMINI_API_KEY.'
 
 def get_wb_sales(days_back=7):
     date_from = (datetime.now() - timedelta(days=days_back)).strftime('%Y-%m-%d')
@@ -111,34 +117,4 @@ def analyze_cfo():
     prompt = 'Данные за 7 дней:\n'
     prompt = prompt + '- Выручка: ' + str(int(rev)) + ' руб\n'
     prompt = prompt + '- Продано: ' + str(qty) + ' шт\n'
-    prompt = prompt + '- Возвратов: ' + str(ret) + ' шт (' + str(round(ret_rate, 1)) + '%)\n\n'
-    prompt = prompt + 'Топ-5 товаров:\n' + top_text + '\n'
-    prompt = prompt + 'ЗАДАНИЕ:\n'
-    prompt = prompt + '1. Найди товары с возвратами больше 20%\n'
-    prompt = prompt + '2. Дай 5 конкретных рекомендаций по увеличению прибыли\n'
-    prompt = prompt + '3. Расставь приоритеты: 🔴 СРОЧНО / 🟡 ВАЖНО / 🟢 ПЛАНОВО'
-    
-    system = 'Ты CFO магазина на Wildberries. Анализируй продажи, ищи точки роста. Отвечай чётко с цифрами на русском языке.'
-    return ask_llm(prompt, system)
-
-st.sidebar.title('👥 Выберите специалиста')
-agent = st.sidebar.radio(
-    'К кому обратиться:',
-    ['🎯 CEO (Общий штаб)', '💰 CFO (Финансы)', '🔤 SEO (скоро)', '📈 Реклама (скоро)', '📦 Логистика (скоро)']
-)
-
-if 'CFO' in agent:
-    st.header('💰 CFO — Финансовый директор')
-    st.write('Анализ P&L, поиск убыточных товаров и точек роста.')
-    if st.button('💰 Провести анализ финансов', type='primary'):
-        with st.spinner('CFO загружает данные из WB...'):
-            result = analyze_cfo()
-        st.markdown(result)
-
-elif 'CEO' in agent:
-    st.header('🎯 CEO — Общий штаб')
-    st.info('CEO будет добавлен после настройки CFO.')
-
-else:
-    st.header(agent)
-    st.info('⏳ Этот агент находится в разработке.')
+    prompt = prompt + '- Возвратов: ' +
